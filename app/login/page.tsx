@@ -37,7 +37,7 @@ export default function LoginPage() {
                         Sign In
                     </Button>
                     <div className="text-sm text-center text-gray-600 dark:text-gray-400">
-                        Don't have an account?{" "}
+                        {"Don't have an account? "}
                         <Button variant="link" className="p-0">
                             Register here
                         </Button>
