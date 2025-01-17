@@ -15,3 +15,5 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+Or, go to [https://marketplace.dedeepsai.com](https://marketplace.dedeepsai.com) to see the result.
