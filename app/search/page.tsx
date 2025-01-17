@@ -1,6 +1,5 @@
 import { Suspense } from "react"
 import { SearchResults } from "./search-components"
-import { SearchInput } from "./search-components"
 import { SearchSkeleton } from "./loading"
 
 export default function SearchPage() {

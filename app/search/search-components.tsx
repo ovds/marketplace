@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Search, SortAsc, SortDesc } from "lucide-react"
 import { ProductCard } from "./product-card"
 import { useState, useMemo } from "react"
+// @ts-ignore
 import Fuse from "fuse.js"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -126,7 +127,7 @@ export function SearchResults() {
 
         if (searchQuery) {
             const fuseResults = fuse.search(searchQuery)
-            results = fuseResults.map(result => result.item)
+            results = fuseResults.map((result: { item: any }) => result.item)
         }
 
         if (selectedCategory !== "all") {
