@@ -5,6 +5,7 @@ export interface Product {
     price: number
     image: string
     keywords: string[]
+    category: string
 }
 
 export interface ProductCardProps {

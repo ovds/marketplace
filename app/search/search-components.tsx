@@ -2,23 +2,13 @@
 
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search } from "lucide-react"
+import { Search, SortAsc, SortDesc } from "lucide-react"
 import { ProductCard } from "./product-card"
-import {useState, useMemo, Suspense} from "react"
+import { useState, useMemo } from "react"
+import Fuse from "fuse.js"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-export function SearchInput({ onSearch }: { onSearch: (query: string) => void }) {
-    return (
-        <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-            <Input
-                className="w-full pl-10"
-                placeholder="Search for products..."
-                type="search"
-                onChange={(e) => onSearch(e.target.value)}
-            />
-        </div>
-    )
-}
+const CATEGORIES = ["All", "Audio", "Wearables", "Gaming", "Accessories"]
 
 const DUMMY_PRODUCTS = [
     {
@@ -27,7 +17,8 @@ const DUMMY_PRODUCTS = [
         description: "Premium noise-cancelling wireless headphones with 30-hour battery life",
         price: 299.99,
         image: "/api/placeholder/400/300",
-        keywords: ["audio", "music", "bluetooth"]
+        keywords: ["audio", "music", "bluetooth"],
+        category: "Audio"
     },
     {
         id: 2,
@@ -35,7 +26,8 @@ const DUMMY_PRODUCTS = [
         description: "Feature-rich smartwatch with health tracking and notifications",
         price: 199.99,
         image: "/api/placeholder/400/300",
-        keywords: ["wearable", "fitness", "health"]
+        keywords: ["wearable", "fitness", "health"],
+        category: "Wearables"
     },
     {
         id: 3,
@@ -43,7 +35,8 @@ const DUMMY_PRODUCTS = [
         description: "Ergonomic aluminum laptop stand with adjustable height",
         price: 49.99,
         image: "/api/placeholder/400/300",
-        keywords: ["desk", "ergonomic", "work"]
+        keywords: ["desk", "ergonomic", "work"],
+        category: "Accessories"
     },
     {
         id: 4,
@@ -51,7 +44,8 @@ const DUMMY_PRODUCTS = [
         description: "RGB mechanical keyboard with custom switches",
         price: 159.99,
         image: "/api/placeholder/400/300",
-        keywords: ["typing", "gaming", "rgb"]
+        keywords: ["typing", "gaming", "rgb"],
+        category: "Gaming"
     },
     {
         id: 5,
@@ -59,62 +53,109 @@ const DUMMY_PRODUCTS = [
         description: "High-precision wireless gaming mouse with RGB lighting",
         price: 79.99,
         image: "/api/placeholder/400/300",
-        keywords: ["gaming", "rgb", "wireless"]
+        keywords: ["gaming", "rgb", "wireless"],
+        category: "Gaming"
     },
 ]
 
-function calculateRelevanceScore(product: any, searchQuery: string): number {
-    if (!searchQuery) return 0;
+const fuseOptions = {
+    keys: ['title', 'description', 'keywords', 'category'],
+    threshold: 0.3,
+    includeScore: true
+}
 
-    const query = searchQuery.toLowerCase();
-    let score = 0;
+export function SearchFilters({
+                                  onSearch,
+                                  onCategoryChange,
+                                  onSortChange
+                              }: {
+    onSearch: (query: string) => void,
+    onCategoryChange: (category: string) => void,
+    onSortChange: (order: 'asc' | 'desc' | null) => void
+}) {
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
 
-    // Title match (highest weight)
-    if (product.title.toLowerCase().includes(query)) {
-        score += 10;
-        // Exact match gets bonus points
-        if (product.title.toLowerCase() === query) {
-            score += 5;
-        }
-    }
-
-    // Description match
-    if (product.description.toLowerCase().includes(query)) {
-        score += 5;
-    }
-
-    // Keyword matches
-    product.keywords.forEach((keyword: string) => {
-        if (keyword.toLowerCase().includes(query)) {
-            score += 3;
-        }
-    });
-
-    return score;
+    return (
+        <div className="space-y-4">
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                <Input
+                    className="w-full pl-10"
+                    placeholder="Search products..."
+                    type="search"
+                    onChange={(e) => onSearch(e.target.value)}
+                />
+            </div>
+            <div className="flex gap-4">
+                <Select onValueChange={onCategoryChange}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {CATEGORIES.map((category) => (
+                            <SelectItem key={category} value={category.toLowerCase()}>
+                                {category}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                        const newOrder = sortOrder === 'asc' ? 'desc' : 'asc'
+                        setSortOrder(newOrder)
+                        onSortChange(newOrder)
+                    }}
+                >
+                    {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                </Button>
+            </div>
+        </div>
+    )
 }
 
 export function SearchResults() {
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState("")
+    const [selectedCategory, setSelectedCategory] = useState("all")
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
+    const fuse = new Fuse(DUMMY_PRODUCTS, fuseOptions)
 
-    const sortedProducts = useMemo(() => {
-        if (!searchQuery) return DUMMY_PRODUCTS;
+    const filteredAndSortedProducts = useMemo(() => {
+        let results = [...DUMMY_PRODUCTS]
 
-        return [...DUMMY_PRODUCTS].sort((a, b) => {
-            const scoreA = calculateRelevanceScore(a, searchQuery);
-            const scoreB = calculateRelevanceScore(b, searchQuery);
-            return scoreB - scoreA;
-        });
-    }, [searchQuery]);
+        if (searchQuery) {
+            const fuseResults = fuse.search(searchQuery)
+            results = fuseResults.map(result => result.item)
+        }
+
+        if (selectedCategory !== "all") {
+            results = results.filter(
+                product => product.category.toLowerCase() === selectedCategory
+            )
+        }
+
+        if (sortOrder) {
+            results.sort((a, b) => {
+                if (sortOrder === 'asc') {
+                    return a.price - b.price
+                }
+                return b.price - a.price
+            })
+        }
+
+        return results
+    }, [searchQuery, selectedCategory, sortOrder])
 
     return (
         <div>
-            <div className="sticky top-0 z-10 dark:bg-gray-900/50 backdrop-blur-md border-b round-l">
-                <div className="container mx-auto px-4 py-4">
-                    <SearchInput onSearch={setSearchQuery}/>
-                </div>
-            </div>
+            <SearchFilters
+                onSearch={setSearchQuery}
+                onCategoryChange={setSelectedCategory}
+                onSortChange={setSortOrder}
+            />
             <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {sortedProducts.map((product) => (
+                {filteredAndSortedProducts.map((product) => (
                     <ProductCard key={product.id} product={product} />
                 ))}
             </div>
